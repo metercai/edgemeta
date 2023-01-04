@@ -1,0 +1,10 @@
+#!/bin/sh
+
+# all in ssservice since v1.12.4
+# https://github.com/shadowsocks/shadowsocks-rust/releases/tag/v1.12.4
+
+[ -e /usr/bin/sslocal ] || ln -sf ssservice /usr/bin/sslocal
+[ -e /usr/bin/ssserver ] || ln -sf ssservice /usr/bin/ssserver
+[ -e /usr/bin/ssmanager ] || ln -sf ssservice /usr/bin/ssmanager
+
+exit 0

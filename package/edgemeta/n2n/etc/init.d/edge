@@ -1,0 +1,88 @@
+#!/bin/sh /etc/rc.common
+START=98
+STOP=10
+
+USE_PROCD=1
+EDGE_NAME="edge"
+CONFIGFILE="/etc/config/edge.conf"
+EDGE_IFACE="n2n0"                          # Default Edge Interface Name (Require)
+ETH_IFACE="br-lan"                           # Default Ethernet Interface Name (Require)
+NET_RANGE="10.1.10.0/24"                    # Default Edge Network Range (Consistent with HOST_ADDR, Require)
+
+start_service() {
+        procd_open_instance
+        procd_set_param command $EDGE_NAME $CONFIGFILE
+        enable_rules
+        enable_ipv4_forward
+        procd_set_param file $CONFIGFILE
+        procd_set_param respawn
+        procd_close_instance
+}
+
+stop_service()
+{
+        disable_rules
+        killall $EDGE_NAME > /dev/null 2>&1
+}
+
+service_triggers()
+{
+        procd_add_reload_trigger "edge.conf"
+}
+
+is_running(){
+        if [ "`ps -ef | pgrep $EDGE_NAME | wc -l`" -eq "0" ]; then
+                echo "$EDGE_NAME not running"
+        else
+                echo "$EDGE_NAME is running, pid is `ps -ef | pgrep $EDGE_NAME | xargs`"
+        fi
+}
+
+check_ipv4_forward(){
+        if [ "$(cat /proc/sys/net/ipv4/ip_forward)" -eq "1" ]; then
+                echo 1
+        else
+                echo 0
+        fi
+}
+
+enable_ipv4_forward(){
+        pre_checking_forward=$(check_ipv4_forward)
+        if [ "$pre_checking_forward" -eq 0 ]; then
+                echo 1 > /proc/sys/net/ipv4/ip_forward
+                echo "ipv4 forward enabled on system..."
+        else
+                echo "ipv4 forward already enabled on system..."
+        fi
+}
+
+enable_rules(){
+        FILTER_FORWARD=`nft -a list table filter | grep $EDGE_IFACE | grep $ETH_IFACE`
+        if [ -z "$FILTER_FORWARD" ]; then
+                nft add rule ip filter FORWARD iifname "$EDGE_IFACE" oifname "$ETH_IFACE" counter accept
+                nft add rule ip filter FORWARD iifname "$ETH_IFACE" oifname "$EDGE_IFACE" ct state related,established counter accept
+        fi
+        NAT_MASQUERADE=`nft -a list table nat | grep "$NET_RANGE" | grep masquerade | grep $ETH_IFACE`
+        if [ -z "$NAT_MASQUERADE" ]; then
+                nft add rule ip nat POSTROUTING oifname "$ETH_IFACE" ip saddr $NET_RANGE counter masquerade
+        fi
+        echo "edge rules in nftables is enable ..."
+}
+
+disable_rules(){
+        FILTER_FORWARD=`nft -a list table filter | grep $EDGE_IFACE | grep $ETH_IFACE`
+        if [ -n "$FILTER_FORWARD" ]; then
+                RNUM=`nft -a list table filter | grep $EDGE_IFACE | grep $ETH_IFACE | awk -F# '{print$2}' | awk '{print$2}' | head -1`
+                nft delete rule ip filter FORWARD handle $RNUM
+                RNUM=`nft -a list table filter | grep $EDGE_IFACE | grep $ETH_IFACE | awk -F# '{print$2}' | awk '{print$2}' | head -1`
+                if [ -n "$RNUM" ]; then
+                        nft delete rule ip filter FORWARD handle $RNUM 
+                fi
+        fi
+        NAT_MASQUERADE=`nft -a list table nat | grep $NET_RANGE | grep masquerade | grep $ETH_IFACE`
+        if [ -n "$NAT_MASQUERADE" ]; then
+                RNUM=`nft -a list table nat | grep $NET_RANGE | grep masquerade | grep $ETH_IFACE | awk -F# '{print$2}' | awk '{print$2}'`
+                nft delete rule ip nat POSTROUTING handle $RNUM
+        fi
+        echo "edge rules removed from nftables..."
+}

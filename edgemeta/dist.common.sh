@@ -1,0 +1,19 @@
+#!/bin/sh
+
+TOPDIR="/home/ubuntu/edgemeta"
+DEVICE_CONFIG="$TOPDIR/edgemeta/$DEVICE.config"
+VERSION_NUMBER=`date +"%y%m"`
+VERSION_CODE=`$TOPDIR/scripts/getver.sh`
+VERSION_HOME_URL="https://edge.token.tm"
+VERSION_REPO="$VERSION_HOME_URL/pkg/$DEVICE/$VERSION_CODE"
+
+IMGDIR="$TOPDIR/bin/targets/$DEVICE_CHIPDIR"
+ROOT_DIST="/data/edgemeta/pkg/$DEVICE"
+VROOT_DIST="$ROOT_DIST/$VERSION_CODE"
+
+IMG_EXT4="edgemeta-$VERSION_NUMBER-$VERSION_CODE-$DEVICE_CHIP-$DEVICE_NAME-ext4-sysupgrade.img.gz"
+IMG_SQUASHFS="edgemeta-$VERSION_NUMBER-$VERSION_CODE-$DEVICE_CHIP-$DEVICE_NAME-squashfs-sysupgrade.img.gz"
+
+IMG_EXT4_DIST="edgemeta-$DEVICE-$VERSION_NUMBER-$VERSION_CODE-ext4.img.gz"
+IMG_SQUASHFS_DIST="edgemeta-$DEVICE-$VERSION_NUMBER-$VERSION_CODE-squashfs.img.gz"
+
