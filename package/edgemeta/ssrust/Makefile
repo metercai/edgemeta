@@ -76,10 +76,8 @@ define Package/$(PKG_NAME)/install
 	$(INSTALL_DIR) $(1)/etc/$(PKG_NAME)
 	$(INSTALL_CONF) ./files/local.json $(1)/etc/$(PKG_NAME)/local.json
 	$(INSTALL_CONF) ./files/log4rs.yaml $(1)/etc/$(PKG_NAME)/log4rs.yaml
-	$(INSTALL_CONF) ./files/ssrust.acl $(1)/etc/$(PKG_NAME)/ssrust.acl
-	$(INSTALL_CONF) ./files/bypass.small.acl $(1)/etc/$(PKG_NAME)/bypass.small.acl
-	$(INSTALL_CONF) ./files/bypass.big.acl $(1)/etc/$(PKG_NAME)/bypass.big.acl
-	$(INSTALL_CONF) ./files/resolv.conf $(1)/etc/$(PKG_NAME)/resolv.conf
+	$(INSTALL_CONF) ./files/cnip.zone $(1)/etc/$(PKG_NAME)/cnip.zone
+	$(INSTALL_CONF) ./files/localip.zone $(1)/etc/$(PKG_NAME)/localip.zone
 	$(SED) "s#%SSSPWD%#$(SSSPWD)#g" $(1)/etc/$(PKG_NAME)/local.json
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/init.d/ssrust $(1)/etc/init.d/$(PKG_NAME)

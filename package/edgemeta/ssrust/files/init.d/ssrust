@@ -5,17 +5,15 @@ STOP=10
 USE_PROCD=1
 PROG=ssrust
 CONFIGFILE=/etc/ssrust/local.json
-ACLFILE=/etc/ssrust/ssrust.acl
-
+CNIPFILE="/etc/ssrust/cnip.zone"
+LOCALIPFILE="/etc/ssrust/localip.zone"
 SS_RometeIP="85.117.234.55"
 SS_Redir_port="60080"
-BypassFile="/etc/ssrust/bypass.small.acl"
-ResolvFile="/etc/ssrust/resolv.conf"
-SS_DNS_port="15353"
+
 
 start_service() {
 	procd_open_instance
-	procd_set_param command $PROG local -d --acl $ACLFILE -c $CONFIGFILE
+	procd_set_param command $PROG local -d -c $CONFIGFILE
 	enable_rules
 	procd_set_param file $CONFIGFILE
 	procd_set_param respawn
@@ -24,7 +22,7 @@ start_service() {
 
 stop_service()
 {
-	unable_rules
+	disable_rules
 	killall $PROG > /dev/null 2>&1
 }
 
@@ -34,61 +32,34 @@ service_triggers()
 }
 
 load_bypass_and_chain() {
-	# IPSET Bypass IP set
-	if [ -f $BypassFile ]; then
-		IPS=`which ipset`
-		$IPS -! restore <<-EOF || return 1
-			-exist create ss_bypass hash:net
-			$(grep -E -v "^#|^$" $BypassFile | sed -e "s/^/-exist add ss_bypass /")
-			-exist add ss_bypass $SS_RometeIP
-EOF
-		echo "Bypass file was loaded!"
-		# SSR Chain for TCP 
-		iptables -t nat -N SSR_TCP
-		iptables -t nat -A SSR_TCP -p tcp -m set --match-set ss_bypass dst -j RETURN
-		iptables -t nat -A SSR_TCP -p tcp -j REDIRECT --to-ports $SS_Redir_port
-		# SSR Chain for UDP
-		iptables -t mangle -N SSR_UDP
-		iptables -t mangle -A SSR_UDP -p udp -m set --match-set ss_bypass dst -j RETURN
-		iptables -t mangle -A SSR_UDP -p udp -j TPROXY --tproxy-mark 0x2333/0x2333 --on-ip 127.0.0.1 --on-port $SS_Redir_port
-		echo "SSR Chain was loaded!"    
-	else
-		echo "Bypass file does not exist!"
-	fi
+  nft add table ip ssrust;
+  nft add set ip ssrust BypassList { type ipv4_addr\; flags interval\; }
+  nft add set ip ssrust ProxyList { type ipv4_addr\; }
+  nft add chain ip ssrust Output { type nat hook output priority mangle\; }
+  nft add chain ip ssrust PreRouting { type nat hook prerouting priority dstnat\; }
+  nft add chain ip ssrust ProxyFilter { }
+  nft add rule ip ssrust ProxyFilter meta l4proto tcp ip daddr != @ProxyList return
+  nft add rule ip ssrust ProxyFilter meta l4proto tcp ip daddr @BypassList return
+  nft add rule ip ssrust ProxyFilter ip protocol tcp counter redirect to :$SS_Redir_port
+  nft add element ip ssrust BypassList { $SS_RometeIP }
+  nft -f $LOCALIPFILE
+  nft -f $CNIPFILE
+	echo "BypassList and ssrust chain was loaded!"
 }
 
 enable_rules() {
-	BYPASSNAME=`ipset list ss_bypass|awk 'NR==1'|awk '{print $2}'`
-	if [ "$BYPASSNAME" != "ss_bypass" ]; then
-		load_bypass_and_chain
-	fi
-	RNAME_TCP=`iptables -t nat -vL PREROUTING -n --line-numbers|grep SSR_TCP`
-	if [ -z "$RNAME_TCP" ]; then
-		# hook SSR TCP rules
-		iptables -t nat -A PREROUTING -i br-lan -p tcp -j SSR_TCP
-	fi
-	RNAME_UDP=`iptables -t mangle -vL PREROUTING -n --line-numbers|grep SSR_UDP`
-	if [ -z "$RNAME_UDP" ]; then
-		# hook SSR UDP rules
-		iptables -t mangle -A PREROUTING -i br-lan -p udp -j SSR_UDP
-		ip route add local 0/0 dev lo table 100
-		ip rule add fwmark 0x2333/0x2333 lookup 100
-	fi
-	echo "SSR rules are enabled ！"
+  nft list table ip ssrust > /dev/null 2>&1 ;
+  if [[ $? -ne 0 ]]; then
+      load_bypass_and_chain
+  fi
+	nft add rule ip ssrust Output ip protocol tcp counter jump ProxyFilter
+  nft add rule ip ssrust PreRouting ip protocol tcp counter jump ProxyFilter
+	echo "SSRust rules are enabled ！"
 }
 
-unable_rules() {
-	RNAME_TCP=`iptables -t nat -vL PREROUTING -n --line-numbers|grep SSR_TCP`
-	if [ -n "$RNAME_TCP" ]; then
-		RNUM=`iptables -t nat -vL PREROUTING -n --line-numbers|grep SSR_TCP|awk '{print$1}'`
-		iptables -t nat -D PREROUTING "$RNUM"
-	fi
-	RNAME_UDP=`iptables -t mangle -vL PREROUTING -n --line-numbers|grep SSR_UDP`
-	if [ -n "$RNAME_UDP" ]; then
-		RNUM=`iptables -t mangle -vL PREROUTING -n --line-numbers|grep SSR_UDP|awk '{print$1}'`
-		iptables -t mangle -D PREROUTING "$RNUM"
-		ip route del local 0/0 dev lo table 100
-		ip rule del fwmark 0x2333/0x2333 lookup 100
-	fi
-	echo "SSR rules in iptables are cancelled !"
+disable_rules() {
+	nft flush chain ip ssrust Output
+  nft flush chain ip ssrust PreRouting
+
+	echo "SSRust rules in nftables are cancelled !"
 }
