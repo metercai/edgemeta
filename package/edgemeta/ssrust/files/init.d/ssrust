@@ -74,6 +74,6 @@ disable_rules() {
   nft flush chain ip ssrust PreRouting
   echo "SSRust rules in nftables are cancelled !"
 
-  rm /var/dnsmasg.d/$PROXYFILE
+  rm /var/dnsmasq.d/$PROXYFILE
   `/etc/init.d/dnsmasq restart`
 }
