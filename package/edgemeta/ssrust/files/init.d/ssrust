@@ -36,7 +36,7 @@ service_triggers()
 load_bypass_and_chain() {
   nft add table ip ssrust;
   nft add set ip ssrust BypassList { type ipv4_addr\; flags interval\; }
-  nft add set ip ssrust ProxyList { type ipv4_addr\; }
+  nft add set ip ssrust ProxyList { type ipv4_addr\; flags dynamic,timeout\; timeout 7d\; size 65536\; }
   nft add chain ip ssrust Output { type nat hook output priority mangle\; }
   nft add chain ip ssrust PreRouting { type nat hook prerouting priority dstnat\; }
   nft add chain ip ssrust ProxyFilter { }
