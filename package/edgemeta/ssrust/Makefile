@@ -8,8 +8,8 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=ssrust
-PKG_VERSION:=1.14.4
-PKG_RELEASE:=20220417
+PKG_VERSION:=1.15.2
+PKG_RELEASE:=20230106
 
 PKG_LIBC:=musl
 ifeq ($(ARCH),arm)
@@ -21,7 +21,7 @@ ifeq ($(ARCH),arm)
   endif
 endif
 
-PKG_SOURCE:=shadowsocks-v$(PKG_VERSION).$(ARCH)-unknown-linux-$(PKG_LIBC).tar.xz
+PKG_SOURCE:=ssrust-v$(PKG_VERSION).$(ARCH)-unknown-linux-$(PKG_LIBC).tar.xz
 PKG_SOURCE_URL:=https://github.com/metercai/SSRust/releases/download/v$(PKG_VERSION)-dns/
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)/$(BUILD_VARIANT)/$(PKG_NAME)-$(PKG_VERSION)-$(PKG_RELEASE)
 PKG_HASH:=skip
@@ -67,20 +67,24 @@ endef
 define Package/$(PKG_NAME)/conffiles
 /etc/$(PKG_NAME)/local.json
 /etc/$(PKG_NAME)/log4rs.yaml
-/etc/$(PKG_NAME)/ssrust.acl
+/etc/$(PKG_NAME)/proxy.acl
 endef
 
 define Package/$(PKG_NAME)/install
 	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/ssservice $(1)/usr/bin/$(PKG_NAME)
 	$(INSTALL_DIR) $(1)/etc/$(PKG_NAME)
-	$(INSTALL_CONF) ./files/local.json $(1)/etc/$(PKG_NAME)/local.json
+	$(INSTALL_CONF) ./files/local.json.default $(1)/etc/$(PKG_NAME)/local.json
 	$(INSTALL_CONF) ./files/log4rs.yaml $(1)/etc/$(PKG_NAME)/log4rs.yaml
 	$(INSTALL_CONF) ./files/cnip.zone $(1)/etc/$(PKG_NAME)/cnip.zone
 	$(INSTALL_CONF) ./files/localip.zone $(1)/etc/$(PKG_NAME)/localip.zone
-	$(SED) "s#%SSSPWD%#$(SSSPWD)#g" $(1)/etc/$(PKG_NAME)/local.json
+	$(INSTALL_CONF) ./files/proxy.acl $(1)/etc/$(PKG_NAME)/proxy.acl
+	$(SED) "s#%SSSERVER%#$(SSSERVER)#g" $(1)/etc/$(PKG_NAME)/local.json
+	$(SED) "s#%SSPORT%#$(SSPORT)#g" $(1)/etc/$(PKG_NAME)/local.json
+	$(SED) "s#%SSPWD%#$(SSPWD)#g" $(1)/etc/$(PKG_NAME)/local.json
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/init.d/ssrust $(1)/etc/init.d/$(PKG_NAME)
+	$(SED) "s#%SSSERVER%#$(SSSERVER)#g" $(1)/etc/init.d/$(PKG_NAME)
 	$(INSTALL_BIN) ./files/resize.sh $(1)/usr/bin/
 ifeq ($(CONFIG_SS_RUST_TOOLS),y)
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/ssurl $(1)/usr/bin/

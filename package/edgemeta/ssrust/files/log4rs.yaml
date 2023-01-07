@@ -6,7 +6,7 @@ appenders:
       pattern: "{d} {h({l}):<5} {m}{n}"
   file:
     kind: rolling_file
-    path: /var/log/shadowsocks-rust.log
+    path: /var/log/ssrust.log
     encoder:
       kind: pattern
       pattern: "{d} {h({l}):<5} {m}{n}"
@@ -16,7 +16,7 @@ appenders:
         limit: 1 mb
       roller:
         kind: fixed_window
-        pattern: /var/log/shadowsocks.{}.log
+        pattern: /var/log/ssrust.{}.log
         count: 3
 root:
   level: debug

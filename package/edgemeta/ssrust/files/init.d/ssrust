@@ -5,30 +5,31 @@ STOP=10
 USE_PROCD=1
 PROG=ssrust
 CONFIGFILE=/etc/ssrust/local.json
+ACLFILE=/etc/ssrust/proxy.acl
 CNIPFILE="/etc/ssrust/cnip.zone"
 LOCALIPFILE="/etc/ssrust/localip.zone"
-SS_RometeIP="85.117.234.55"
+SS_RometeIP="%SSSERVER%"
 SS_Redir_port="60080"
 
 
 start_service() {
-	procd_open_instance
-	procd_set_param command $PROG local -d -c $CONFIGFILE
-	enable_rules
-	procd_set_param file $CONFIGFILE
-	procd_set_param respawn
-	procd_close_instance
+  procd_open_instance
+  procd_set_param command $PROG local -d -c $CONFIGFILE --acl $ACLFILE
+  enable_rules
+  procd_set_param file $CONFIGFILE
+  procd_set_param respawn
+  procd_close_instance
 }
 
 stop_service()
 {
-	disable_rules
-	killall $PROG > /dev/null 2>&1
+  disable_rules
+  killall $PROG > /dev/null 2>&1
 }
 
 service_triggers()
 {
-	procd_add_reload_trigger "local.json"
+  procd_add_reload_trigger "local.json"
 }
 
 load_bypass_and_chain() {
@@ -44,22 +45,28 @@ load_bypass_and_chain() {
   nft add element ip ssrust BypassList { $SS_RometeIP }
   nft -f $LOCALIPFILE
   nft -f $CNIPFILE
-	echo "BypassList and ssrust chain was loaded!"
+  echo "BypassList and ssrust chain was loaded!"
 }
 
 enable_rules() {
   nft list table ip ssrust > /dev/null 2>&1 ;
   if [[ $? -ne 0 ]]; then
+      echo " load bypass set ..."
       load_bypass_and_chain
   fi
-	nft add rule ip ssrust Output ip protocol tcp counter jump ProxyFilter
-  nft add rule ip ssrust PreRouting ip protocol tcp counter jump ProxyFilter
-	echo "SSRust rules are enabled ！"
+  JUMP_FLAG=`nft -a list chain ssrust Output | grep "jump ProxyFilter"`
+  if [ -z "$JUMP_FLAG" ]; then
+      nft add rule ip ssrust Output ip protocol tcp counter jump ProxyFilter
+  fi
+  JUMP_FLAG=`nft -a list chain ssrust PreRouting | grep "jump ProxyFilter"`                 
+  if [ -z "$JUMP_FLAG" ]; then                                                          
+      nft add rule ip ssrust PreRouting ip protocol tcp counter jump ProxyFilter
+  fi
+  echo "SSRust rules are enabled ！"
 }
 
 disable_rules() {
-	nft flush chain ip ssrust Output
+  nft flush chain ip ssrust Output
   nft flush chain ip ssrust PreRouting
-
-	echo "SSRust rules in nftables are cancelled !"
+  echo "SSRust rules in nftables are cancelled !"
 }
