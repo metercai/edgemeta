@@ -79,6 +79,7 @@ define Package/$(PKG_NAME)/install
 	$(INSTALL_CONF) ./files/cnip.zone $(1)/etc/$(PKG_NAME)/cnip.zone
 	$(INSTALL_CONF) ./files/localip.zone $(1)/etc/$(PKG_NAME)/localip.zone
 	$(INSTALL_CONF) ./files/proxy.acl $(1)/etc/$(PKG_NAME)/proxy.acl
+	$(INSTALL_CONF) ./files/proxy-gfw.conf $(1)/etc/$(PKG_NAME)/proxy-gfw.conf
 	$(SED) "s#%SSSERVER%#$(SSSERVER)#g" $(1)/etc/$(PKG_NAME)/local.json
 	$(SED) "s#%SSPORT%#$(SSPORT)#g" $(1)/etc/$(PKG_NAME)/local.json
 	$(SED) "s#%SSPWD%#$(SSPWD)#g" $(1)/etc/$(PKG_NAME)/local.json

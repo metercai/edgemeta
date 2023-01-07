@@ -6,6 +6,7 @@ USE_PROCD=1
 PROG=ssrust
 CONFIGFILE=/etc/ssrust/local.json
 ACLFILE=/etc/ssrust/proxy.acl
+PROXYFILE=proxy-gfw.conf
 CNIPFILE="/etc/ssrust/cnip.zone"
 LOCALIPFILE="/etc/ssrust/localip.zone"
 SS_RometeIP="%SSSERVER%"
@@ -63,10 +64,16 @@ enable_rules() {
       nft add rule ip ssrust PreRouting ip protocol tcp counter jump ProxyFilter
   fi
   echo "SSRust rules are enabled ！"
+
+  cp /etc/ssrust/$PROXYFILE /var/dnsmasq.d/
+  `/etc/init.d/dnsmasq restart`
 }
 
 disable_rules() {
   nft flush chain ip ssrust Output
   nft flush chain ip ssrust PreRouting
   echo "SSRust rules in nftables are cancelled !"
+
+  rm /var/dnsmasg.d/$PROXYFILE
+  `/etc/init.d/dnsmasq restart`
 }
