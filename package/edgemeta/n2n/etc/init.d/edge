@@ -1,13 +1,14 @@
 #!/bin/sh /etc/rc.common
-START=98
-STOP=10
+START=80
+STOP=20
 
 USE_PROCD=1
-EDGE_NAME="edge"
-CONFIGFILE="/etc/config/edge.conf"
+EDGE_NAME="n2n"
+CONFIGFILE="/etc/config/n2n.conf"
 EDGE_IFACE="n2n0"                          # Default Edge Interface Name (Require)
-ETH_IFACE="br-lan"                           # Default Ethernet Interface Name (Require)
+ETH_IFACE="eth0"                           # Default Wlan Ethernet Interface Name (Require)
 NET_RANGE="10.1.10.0/24"                    # Default Edge Network Range (Consistent with HOST_ADDR, Require)
+LAN_RANGE="192.168.9.0/24"
 
 start_service() {
         procd_open_instance
@@ -27,7 +28,7 @@ stop_service()
 
 service_triggers()
 {
-        procd_add_reload_trigger "edge.conf"
+        procd_add_reload_trigger $CONFIGFILE
 }
 
 is_running(){
@@ -63,34 +64,18 @@ enable_rules(){
                 nft add chain ip n2nedge FORWARD { type filter hook forward priority filter\; }
                 nft add chain ip n2nedge POSTROUTING { type nat hook postrouting priority srcnat\; }
         fi
-        FILTER_FORWARD=`nft -a list table n2nedge | grep $EDGE_IFACE | grep $ETH_IFACE`
-        if [ -z "$FILTER_FORWARD" ]; then
-                nft add rule ip n2nedge FORWARD iifname "$EDGE_IFACE" oifname "$ETH_IFACE" counter accept
-                nft add rule ip n2nedge FORWARD iifname "$ETH_IFACE" oifname "$EDGE_IFACE" ct state related,established counter accept
-        fi
         NAT_MASQUERADE=`nft -a list table n2nedge | grep "$NET_RANGE" | grep masquerade`
         if [ -z "$NAT_MASQUERADE" ]; then
-                nft add rule ip n2nedge POSTROUTING ip saddr $NET_RANGE counter masquerade
+                nft add rule ip n2nedge POSTROUTING ip saddr $NET_RANGE ip daddr $LAN_RANGE counter masquerade
+                nft add rule ip n2nedge POSTROUTING oifname "$ETH_IFACE" counter masquerade
         fi
 
 
-        echo "edge rules in nftables is enable ..."
+        echo "n2n rules in nftables is enable ..."
 }
 
 disable_rules(){
-        FILTER_FORWARD=`nft -a list table n2nedge | grep $EDGE_IFACE | grep $ETH_IFACE`
-        if [ -n "$FILTER_FORWARD" ]; then
-                RNUM=`nft -a list table n2nedge | grep $EDGE_IFACE | grep $ETH_IFACE | awk -F# '{print$2}' | awk '{print$2}' | head -1`
-                nft delete rule ip filter FORWARD handle $RNUM
-                RNUM=`nft -a list table n2nedge | grep $EDGE_IFACE | grep $ETH_IFACE | awk -F# '{print$2}' | awk '{print$2}' | head -1`
-                if [ -n "$RNUM" ]; then
-                        nft delete rule ip n2nedge FORWARD handle $RNUM 
-                fi
-        fi
-        NAT_MASQUERADE=`nft -a list table n2nedge | grep $NET_RANGE | grep masquerade`
-        if [ -n "$NAT_MASQUERADE" ]; then
-                RNUM=`nft -a list table n2nedge | grep $NET_RANGE | grep masquerade | awk -F# '{print$2}' | awk '{print$2}'`
-                nft delete rule ip n2nedge POSTROUTING handle $RNUM
-        fi
-        echo "edge rules removed from nftables..."
+        nft flush chain ip n2nedge POSTROUTING
+        nft flush chain ip n2nedge FORWARD 
+        echo "n2n rules removed from nftables..."
 }

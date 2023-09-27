@@ -1,15 +1,13 @@
 {
     "local_address": "127.0.0.1",
     "local_port": 1080,
+    "acl": "/etc/ssrust/proxy.acl",
+
     "locals": [
         {
             "protocol": "redir",
             "local_address": "0.0.0.0",
             "local_port": 60080,
-            "address": "%SSSERVER%", 
-            "port": %SSPORT%,
-            "method": "2022-blake3-aes-256-gcm",
-            "password": "%SSPWD%",
             "tcp-redir": "redirect",
             "udp-redir": "tproxy"
         },
@@ -17,7 +15,7 @@
             "protocol": "dns",
             "local_address": "::",
             "local_port": 15353,
-            "local_dns_address": "114.114.114.114",
+            "local_dns_address": "192.168.1.1",
             "local_dns_port": 53,
             "remote_dns_address": "8.8.8.8",
             "remote_dns_port": 53
@@ -26,16 +24,15 @@
 
     "servers": [
         {
-            "disabled": true,
-            "address": "%SSSERVER%",
+            "disabled": false,
+            "address": "%SSSERVER2%",
             "port": %SSPORT%,
-            "method": "aes-256-gcm",
-            "password": "%SSPWD%",
-            "plugin": "v2ray-plugin",
-            "plugin_opts": "mode=quic;host=github.com",
+            "method": "2022-blake3-aes-256-gcm",
+            "password": "%SSPWD2%",
             "timeout": 7200
         },
         {
+            "disabled": false,
             "server": "%SSSERVER%", 
             "server_port": %SSPORT%,
             "method": "2022-blake3-aes-256-gcm",

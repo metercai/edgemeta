@@ -78,12 +78,12 @@ endef
 
 define Package/n2n-edge/install
 	$(INSTALL_DIR) $(1)/usr/bin
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/edge $(1)/usr/bin/
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/edge $(1)/usr/bin/$(PKG_NAME)
 	$(INSTALL_DIR) $(1)/etc/config
-	$(INSTALL_CONF) ./etc/config/edge.conf $(1)/etc/config/edge.conf
-	$(SED) "s#%N2N_KEY%#$(N2N_KEY)#g" $(1)/etc/config/edge.conf
+	$(INSTALL_CONF) ./etc/config/edge.conf $(1)/etc/config/$(PKG_NAME).conf
+	$(SED) "s#%N2N_KEY%#$(N2N_KEY)#g" $(1)/etc/config/$(PKG_NAME).conf
 	$(INSTALL_DIR) $(1)/etc/init.d
-	$(INSTALL_BIN) ./etc/init.d/edge $(1)/etc/init.d/edge
+	$(INSTALL_BIN) ./etc/init.d/edge $(1)/etc/init.d/$(PKG_NAME)
 endef
 
 define Package/n2n-supernode/conffiles

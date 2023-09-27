@@ -68,6 +68,7 @@ define Package/$(PKG_NAME)/conffiles
 /etc/$(PKG_NAME)/local.json
 /etc/$(PKG_NAME)/log4rs.yaml
 /etc/$(PKG_NAME)/proxy.acl
+/etc/$(PKG_NAME)/bypass.iplist
 endef
 
 define Package/$(PKG_NAME)/install
@@ -75,18 +76,20 @@ define Package/$(PKG_NAME)/install
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/ssservice $(1)/usr/bin/$(PKG_NAME)
 	$(INSTALL_DIR) $(1)/etc/$(PKG_NAME)
 	$(INSTALL_CONF) ./files/local.json.default $(1)/etc/$(PKG_NAME)/local.json
-	$(INSTALL_CONF) ./files/log4rs.yaml $(1)/etc/$(PKG_NAME)/log4rs.yaml
-	$(INSTALL_CONF) ./files/cnip.zone $(1)/etc/$(PKG_NAME)/cnip.zone
-	$(INSTALL_CONF) ./files/localip.zone $(1)/etc/$(PKG_NAME)/localip.zone
-	$(INSTALL_CONF) ./files/proxy.acl $(1)/etc/$(PKG_NAME)/proxy.acl
-	$(INSTALL_CONF) ./files/proxy-gfw.conf $(1)/etc/$(PKG_NAME)/proxy-gfw.conf
+	$(INSTALL_CONF) ./files/log4rs.yaml $(1)/etc/$(PKG_NAME)/
+	$(INSTALL_CONF) ./files/bypass.iplist $(1)/etc/$(PKG_NAME)/
+	$(INSTALL_CONF) ./files/proxy.acl $(1)/etc/$(PKG_NAME)/
+	$(INSTALL_CONF) ./files/proxy-gfw.conf $(1)/etc/$(PKG_NAME)/
+	$(INSTALL_CONF) ./files/anti-ad-for-dnsmasq.conf $(1)/etc/$(PKG_NAME)/
 	$(SED) "s#%SSSERVER%#$(SSSERVER)#g" $(1)/etc/$(PKG_NAME)/local.json
 	$(SED) "s#%SSPORT%#$(SSPORT)#g" $(1)/etc/$(PKG_NAME)/local.json
 	$(SED) "s#%SSPWD%#$(SSPWD)#g" $(1)/etc/$(PKG_NAME)/local.json
+	$(SED) "s#%SSSERVER2%#$(SSSERVER2)#g" $(1)/etc/$(PKG_NAME)/local.json
+	$(SED) "s#%SSPWD2%#$(SSPWD2)#g" $(1)/etc/$(PKG_NAME)/local.json
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/init.d/ssrust $(1)/etc/init.d/$(PKG_NAME)
 	$(SED) "s#%SSSERVER%#$(SSSERVER)#g" $(1)/etc/init.d/$(PKG_NAME)
-	$(INSTALL_BIN) ./files/resize.sh $(1)/usr/bin/
+	$(INSTALL_BIN) ./files/ssrust-switch.sh $(1)/usr/bin/
 ifeq ($(CONFIG_SS_RUST_TOOLS),y)
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/ssurl $(1)/usr/bin/
 endif

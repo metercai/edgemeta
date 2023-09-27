@@ -1,79 +1,60 @@
 #!/bin/sh /etc/rc.common
-START=99
-STOP=10
+START=82
+STOP=20
 
 USE_PROCD=1
 PROG=ssrust
 CONFIGFILE=/etc/ssrust/local.json
-ACLFILE=/etc/ssrust/proxy.acl
-PROXYFILE=proxy-gfw.conf
-CNIPFILE="/etc/ssrust/cnip.zone"
-LOCALIPFILE="/etc/ssrust/localip.zone"
-SS_RometeIP="%SSSERVER%"
+BYPASSFILE="/etc/ssrust/bypass.iplist"
 SS_Redir_port="60080"
 
 
 start_service() {
   procd_open_instance
-  procd_set_param command $PROG local -d -c $CONFIGFILE --acl $ACLFILE
-  enable_rules
+  procd_set_param command $PROG local -c $CONFIGFILE
+  load_bypass_and_chain
   procd_set_param file $CONFIGFILE
   procd_set_param respawn
+  procd_set_param pidfile /var/run/ssrust.pid
   procd_close_instance
 }
 
 stop_service()
 {
-  disable_rules
-  killall $PROG > /dev/null 2>&1
+  kill -KILL `cat /var/run/ssrust.pid` > /dev/null 2>&1
+  rm /var/run/ssrust.pid
+}
+
+reload_service()
+{
+  echo "reload config file for ssrust!"
+  stop_service
+  start_service
 }
 
 service_triggers()
 {
-  procd_add_reload_trigger "local.json"
+  procd_add_reload_trigger $CONFIGFILE
 }
 
 load_bypass_and_chain() {
-  nft add table ip ssrust;
-  nft add set ip ssrust BypassList { type ipv4_addr\; flags interval\; }
-  nft add set ip ssrust ProxyList { type ipv4_addr\; flags dynamic,timeout\; timeout 7d\; size 65536\; }
-  nft add chain ip ssrust Output { type nat hook output priority mangle\; }
-  nft add chain ip ssrust PreRouting { type nat hook prerouting priority dstnat\; }
-  nft add chain ip ssrust ProxyFilter { }
-  nft add rule ip ssrust ProxyFilter meta l4proto tcp ip daddr != @ProxyList return
-  nft add rule ip ssrust ProxyFilter meta l4proto tcp ip daddr @BypassList return
-  nft add rule ip ssrust ProxyFilter ip protocol tcp counter redirect to :$SS_Redir_port
-  nft add element ip ssrust BypassList { $SS_RometeIP }
-  nft -f $LOCALIPFILE
-  nft -f $CNIPFILE
-  echo "BypassList and ssrust chain was loaded!"
-}
-
-enable_rules() {
   nft list table ip ssrust > /dev/null 2>&1 ;
-  if [[ $? -ne 0 ]]; then
-      echo " load bypass set ..."
-      load_bypass_and_chain
+  if [ $? -ne 0 ]; then                                                                                                        
+    nft add table ip ssrust;
+    nft add set ip ssrust BypassList { type ipv4_addr\; flags interval\; }
+    nft add set ip ssrust ProxyList { type ipv4_addr\; flags dynamic,timeout\; timeout 7d\; size 65536\; }
+    nft add chain ip ssrust Output { type nat hook output priority mangle\; }
+    nft add chain ip ssrust PreRouting { type nat hook prerouting priority dstnat\; }
+    nft add chain ip ssrust ProxyFilter { }
+    nft add rule ip ssrust ProxyFilter meta l4proto tcp ip daddr != @ProxyList return
+    nft add rule ip ssrust ProxyFilter meta l4proto udp ip daddr != @ProxyList return
+    nft add rule ip ssrust ProxyFilter meta l4proto tcp ip daddr @BypassList return
+    nft add rule ip ssrust ProxyFilter meta l4proto udp ip daddr @BypassList return
+    nft add rule ip ssrust ProxyFilter ip protocol tcp counter redirect to :$SS_Redir_port
+    nft add rule ip ssrust ProxyFilter meta l4proto udp counter meta mark set 0x2333 tproxy to :$SS_Redir_port
+    nft -f $BYPASSFILE
+    echo "BypassList and ssrust chain was loaded!"
+    ssrust-switch.sh up > /dev/null 2>&1
+    echo "ssrust rules was enabled!"
   fi
-  JUMP_FLAG=`nft -a list chain ssrust Output | grep "jump ProxyFilter"`
-  if [ -z "$JUMP_FLAG" ]; then
-      nft add rule ip ssrust Output ip protocol tcp counter jump ProxyFilter
-  fi
-  JUMP_FLAG=`nft -a list chain ssrust PreRouting | grep "jump ProxyFilter"`                 
-  if [ -z "$JUMP_FLAG" ]; then                                                          
-      nft add rule ip ssrust PreRouting ip protocol tcp counter jump ProxyFilter
-  fi
-  echo "SSRust rules are enabled ！"
-
-  cp /etc/ssrust/$PROXYFILE /var/dnsmasq.d/
-  `/etc/init.d/dnsmasq restart`
-}
-
-disable_rules() {
-  nft flush chain ip ssrust Output
-  nft flush chain ip ssrust PreRouting
-  echo "SSRust rules in nftables are cancelled !"
-
-  rm /var/dnsmasq.d/$PROXYFILE
-  `/etc/init.d/dnsmasq restart`
 }
