@@ -8,8 +8,8 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=ssrust
-PKG_VERSION:=1.15.2
-PKG_RELEASE:=20230106
+PKG_VERSION:=1.16.2
+PKG_RELEASE:=20230928
 
 PKG_LIBC:=musl
 ifeq ($(ARCH),arm)

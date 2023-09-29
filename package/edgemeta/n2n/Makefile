@@ -7,7 +7,7 @@ include $(TOPDIR)/rules.mk
 PKG_NAME:=n2n
 PKG_VERSION:=3.1.2
 PKG_RELEASE:=202212
-PKG_REV:=79bafc6
+PKG_REV:=cd7b3b4
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_REV).tar.gz
@@ -29,7 +29,7 @@ ifdef N2N_PKG_VERSION
     PKG_VERSION:=$(N2N_PKG_VERSION)
 endif
 
-PKG_MAINTAINER:=Meter Tsy<925457@qq.com>
+PKG_MAINTAINER:=Meter Cai<925457@qq.com>
 PKG_LICENSE:=GPL3
 
 # autogen fix
